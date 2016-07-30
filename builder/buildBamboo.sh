@@ -1,7 +1,5 @@
 #!/bin/bash
 
-apk update && \
-  apk add  --no-cache curl git bash go supervisor net-tools && rm -rf /var/cache/apk/*
 export GOROOT=/usr/lib/go
 export GOPATH=/gopath
 export GOBIN=/gopath/bin

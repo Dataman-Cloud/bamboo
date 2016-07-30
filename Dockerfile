@@ -3,6 +3,9 @@ MAINTAINER Xiao Deshi <dsxiao@dataman-inc.com>
 
 RUN mkdir -p /config
 
+RUN apk update && \
+    apk add  --no-cache curl git bash go supervisor net-tools && rm -rf /var/cache/apk/*
+
 ADD config/haproxy_template.cfg /config/haproxy_template.cfg
 ADD config/production.json /config/production.json
 
