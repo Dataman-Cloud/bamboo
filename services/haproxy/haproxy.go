@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"runtime"
 	"sort"
 
 	conf "github.com/QubitProducts/bamboo/configuration"
@@ -14,10 +13,8 @@ import (
 )
 
 type templateData struct {
-	Frontends []Frontend
-	Weights   map[string]int
-	Services  map[string]service.Service
-	NBProc    int
+	Apps     marathon.AppList
+	Services map[string]service.Service
 }
 
 type Server struct {
@@ -62,33 +59,22 @@ var FrontendMap map[string]Frontend = make(map[string]Frontend)
 
 func GetTemplateData(config *conf.Configuration, storage service.Storage, appStorage application.Storage) (*templateData, error) {
 	apps, err := marathon.FetchApps(config.Marathon, config)
+
 	if err != nil {
 		return nil, err
 	}
 
-	//services, err := storage.All()
-	//if err != nil {
-	//return nil, err
-	//}
-
-	zkWeights, err := appStorage.All()
+	services, err := storage.All()
 	if err != nil {
 		return nil, err
 	}
-	apps = handleCanary(apps, zkWeights)
-	frontends := formFrontends(apps)
-	weightMap := formWeightMap(zkWeights)
 
-	//byName := make(map[string]service.Service)
-	//for _, service := range services {
-	//byName[service.Id] = service
-	//}
-
-	cores := runtime.NumCPU()
-	if cores > 64 {
-		cores = 64
+	byName := make(map[string]service.Service)
+	for _, service := range services {
+		byName[service.Id] = service
 	}
-	return &templateData{frontends, weightMap, nil, cores}, nil
+
+	return &templateData{apps, byName}, nil
 }
 
 func formWeightMap(zkWeights []application.Weight) map[string]int {

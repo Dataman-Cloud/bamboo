@@ -32,6 +32,27 @@ func (sub *EventSubscriptionAPI) Notify(payload []byte) {
 	if err != nil {
 		log.Printf("Unable to decode JSON Marathon Event request: %s \n", string(payload))
 	}
+	sub.NotifyByEvent(payload, event)
+}
+
+func (sub *EventSubscriptionAPI) NotifyByEvent(payload []byte, event eb.MarathonEvent) {
+	var err error
+	switch event.EventType {
+	case "api_post_event":
+		var apiPostEvent eb.ApiPostEvent
+		err = json.Unmarshal(payload, &apiPostEvent)
+		event.AppId = apiPostEvent.AppDefinition.Id
+
+	case "status_update_event":
+		var statusUpdateEvent eb.StatusUpdateEvent
+		err = json.Unmarshal(payload, &statusUpdateEvent)
+		event.AppId = statusUpdateEvent.AppId
+
+	}
+
+	if err != nil {
+		log.Printf("Unable to decode JSON Marathon Event request: %s \n", string(payload))
+	}
 
 	sub.EventBus.Publish(event)
 }

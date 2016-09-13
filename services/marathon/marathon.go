@@ -52,6 +52,7 @@ type App struct {
 	Labels          map[string]string
 	Endpoints       []Endpoint
 	CurVsn          string
+	Port            string
 }
 
 type AppList []App
@@ -145,7 +146,9 @@ func fetchMarathonApps(endpoint string, conf *configuration.Configuration) (map[
 	dataById := map[string]marathonApp{}
 
 	for _, appConfig := range appResponse.Apps {
-		dataById[appConfig.Id] = appConfig
+		if strings.TrimLeft(appConfig.Id, "/") == conf.Application.Id {
+			dataById[appConfig.Id] = appConfig
+		}
 	}
 
 	return dataById, nil
@@ -222,6 +225,9 @@ func createApps(tasksById map[string]marathonTaskList, marathonApps map[string]m
 				endpoints := formEndpoints(endpointStr)
 				app.Endpoints = endpoints
 			}
+		}
+		if appPort, ok := mApp.Env["HAPROXY_TCP_PORT"]; ok {
+			app.Port = appPort
 		}
 
 		tasks := formTasks(mApp, *app, tasksById)

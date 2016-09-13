@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/QubitProducts/bamboo/configuration"
@@ -24,7 +25,24 @@ type MarathonEvent struct {
 	// EventType can be
 	// api_post_event, status_update_event, subscribe_event
 	EventType string
+	AppId     string
 	Timestamp string
+}
+
+type ApiPostEvent struct {
+	EventType     string
+	TimeStamp     string
+	AppDefinition AppDefinition
+}
+
+type AppDefinition struct {
+	Id string
+}
+
+type StatusUpdateEvent struct {
+	EventType string
+	TimeStamp string
+	AppId     string
 }
 
 type ZookeeperEvent struct {
@@ -47,9 +65,11 @@ type Handlers struct {
 }
 
 func (h *Handlers) MarathonEventHandler(event MarathonEvent) {
-	log.Printf("%s => %s\n", event.EventType, event.Timestamp)
-	queueUpdate(h)
-	h.Conf.StatsD.Increment(1.0, "callback.marathon", 1)
+	if h.Conf.Application.Id == strings.TrimLeft(event.AppId, "/") || event.EventType == "event_stream_attached" {
+		log.Printf("%s-----> %s => %s\n", event.AppId, event.EventType, event.Timestamp)
+		queueUpdate(h)
+		h.Conf.StatsD.Increment(1.0, "callback.marathon", 1)
+	}
 }
 
 func (h *Handlers) ServiceEventHandler(event ServiceEvent) {

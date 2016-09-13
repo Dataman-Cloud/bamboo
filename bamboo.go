@@ -271,6 +271,7 @@ func listenToMarathonEventStream(conf *configuration.Configuration, sub api.Even
 					}
 
 					line = line[6:]
+
 					sub.Notify([]byte(line))
 				}
 

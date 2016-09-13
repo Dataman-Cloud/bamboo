@@ -25,6 +25,9 @@ type Configuration struct {
 
 	// StatsD configuration
 	StatsD StatsD
+
+	// Application configuration
+	Application Application
 }
 
 /*
@@ -62,6 +65,8 @@ func FromFile(filePath string) (Configuration, error) {
 	setValueFromEnv(&conf.StatsD.Host, "STATSD_HOST")
 	setValueFromEnv(&conf.StatsD.Prefix, "STATSD_PREFIX")
 	setBoolValueFromEnv(&conf.StatsD.Enabled, "STATSD_ENABLED")
+
+	setValueFromEnv(&conf.Application.Id, "APPLICATION_ID")
 	return *conf, err
 }
 
