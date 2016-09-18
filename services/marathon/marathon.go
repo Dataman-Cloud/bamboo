@@ -52,7 +52,6 @@ type App struct {
 	Labels          map[string]string
 	Endpoints       []Endpoint
 	CurVsn          string
-	Port            string
 }
 
 type AppList []App
@@ -202,32 +201,19 @@ func fetchTasks(endpoint string, conf *configuration.Configuration) (map[string]
 func createApps(tasksById map[string]marathonTaskList, marathonApps map[string]marathonApp) AppList {
 	appMap := map[string]*App{}
 	for _, mApp := range marathonApps {
-		mappJson, _ := json.Marshal(mApp)
-		log.Println("mapp", string(mappJson))
 		appPath := formPath(mApp)
-		log.Println("appPath", string(appPath))
+		//log.Println("appPath", string(appPath))
 		app, ok := appMap[appPath]
 		if !ok {
 			newApp := formApp(mApp, appPath)
 
-			if endpointStr, ok := mApp.Env["BB_DM_ENDPOINTS"]; ok {
+			if endpointStr, ok := mApp.Env["HAPROXY_TCP_PORT"]; ok {
 				endpoints := formEndpoints(endpointStr)
 				newApp.Endpoints = endpoints
 			}
+
 			app = &newApp
 			appMap[appPath] = app
-		}
-
-		//compare and select min version
-		if appVersionStr, ok := mApp.Env["SRY_APP_VSN"]; ok && appVersionStr < app.CurVsn {
-			app.CurVsn = appVersionStr
-			if endpointStr, ok := mApp.Env["BB_DM_ENDPOINTS"]; ok {
-				endpoints := formEndpoints(endpointStr)
-				app.Endpoints = endpoints
-			}
-		}
-		if appPort, ok := mApp.Env["HAPROXY_TCP_PORT"]; ok {
-			app.Port = appPort
 		}
 
 		tasks := formTasks(mApp, *app, tasksById)
@@ -237,8 +223,6 @@ func createApps(tasksById map[string]marathonTaskList, marathonApps map[string]m
 		appJson, _ := json.Marshal(app)
 		log.Println("app", string(appJson))
 	}
-	appMapJson, _ := json.Marshal(appMap)
-	log.Println("app", string(appMapJson))
 
 	apps := AppList{}
 	for _, app := range appMap {
@@ -268,28 +252,15 @@ func formTasks(mApp marathonApp, app App, tasksById map[string]marathonTaskList)
 }
 
 func formEndpoints(str string) []Endpoint {
-	//{{ range $tcpIdx, $endpoint := Split $app.Env.BB_DM_ENDPOINTS "," }}
-	//{{ $endpointSlices := Split $endpoint ":" }}
-	//{{ $svcType := index $endpointSlices 0 }}
-	//{{ $protocol := index $endpointSlices 1 }}
-	//{{ $uri := index $endpointSlices 2 }}
-	//{{ $port := index $endpointSlices 3 }}
-	//# len {{ len $end
-	//BB_DM_ENDPOINTS=pub:http:nil:9800,pub:tcp:nil:9801
-
 	epStrSlices := strings.Split(str, ",")
 	endpoints := []Endpoint{}
 	for _, epStr := range epStrSlices {
-		epParts := strings.Split(epStr, ":")
-		if len(epParts) < 4 {
-			continue
-		}
-		bind, err := strconv.Atoi(epParts[3])
+		bind, err := strconv.Atoi(epStr)
 		if err != nil {
 			log.Panicln("bad bind value", err.Error())
 		}
 		endpoint := Endpoint{
-			Protocol: epParts[1],
+			Protocol: "tcp",
 			Bind:     bind,
 		}
 

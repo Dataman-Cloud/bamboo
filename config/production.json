@@ -1,12 +1,12 @@
 {
   "Marathon": {
-    "Endpoint": "http://192.168.1.155:8080"
+    "Endpoint": "http://192.168.1.127:5098"
   },
 
   "Bamboo": {
     "Endpoint": "http://192.168.1.127:8000",
     "Zookeeper": {
-      "Host": "192.168.1.155:2181",
+      "Host": "192.168.1.127:5092",
       "Path": "/bamboo",
       "ReportingDelay": 5
     }

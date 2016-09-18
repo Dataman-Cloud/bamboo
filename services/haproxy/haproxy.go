@@ -13,8 +13,8 @@ import (
 )
 
 type templateData struct {
-	Apps     marathon.AppList
-	Services map[string]service.Service
+	Frontends []Frontend
+	Services  map[string]service.Service
 }
 
 type Server struct {
@@ -69,12 +69,15 @@ func GetTemplateData(config *conf.Configuration, storage service.Storage, appSto
 		return nil, err
 	}
 
+	frontends := formFrontends(apps)
+	log.Printf("frontends = %+v", frontends)
+
 	byName := make(map[string]service.Service)
 	for _, service := range services {
 		byName[service.Id] = service
 	}
 
-	return &templateData{apps, byName}, nil
+	return &templateData{frontends, byName}, nil
 }
 
 func formWeightMap(zkWeights []application.Weight) map[string]int {
@@ -120,11 +123,9 @@ func formFrontends(apps marathon.AppList) []Frontend {
 						continue
 					}
 					server := Server{
-						Name:    fmt.Sprintf("%s-%s-%d", task.Server, task.Version, task.Ports[epIdx]),
-						Version: task.Version,
-						Host:    task.Host,
-						Port:    task.Ports[epIdx],
-						Weight:  task.Weight,
+						Name: fmt.Sprintf("%s-%d", task.Server, task.Ports[epIdx]),
+						Host: task.Host,
+						Port: task.Ports[epIdx],
 					}
 					servers = append(servers, server)
 				}
