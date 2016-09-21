@@ -207,7 +207,7 @@ func createApps(tasksById map[string]marathonTaskList, marathonApps map[string]m
 		if !ok {
 			newApp := formApp(mApp, appPath)
 
-			if endpointStr, ok := mApp.Env["HAPROXY_TCP_PORT"]; ok {
+			if endpointStr, ok := mApp.Env["HAPROXY_PORT"]; ok {
 				endpoints := formEndpoints(endpointStr)
 				newApp.Endpoints = endpoints
 			}
@@ -255,12 +255,26 @@ func formEndpoints(str string) []Endpoint {
 	epStrSlices := strings.Split(str, ",")
 	endpoints := []Endpoint{}
 	for _, epStr := range epStrSlices {
-		bind, err := strconv.Atoi(epStr)
-		if err != nil {
-			log.Panicln("bad bind value", err.Error())
+		var protocol string
+		var bind int
+		var err error
+		epSlice := strings.Split(epStr, ":")
+		if len(epSlice) != 2 && !strings.Contains(epStr, "tcp") && !strings.Contains(epStr, "http") {
+			log.Println("[Warn] the HAPROXY_PORT env should be protocol with port, eg: tcp:8888, also the default protocol tcp is given if missing")
+			protocol = "tcp"
+			bind, err = strconv.Atoi(epSlice[0])
+			if err != nil {
+				log.Panicln("bad bind value", err.Error())
+			}
+		} else {
+			protocol = epSlice[0]
+			bind, err = strconv.Atoi(epSlice[1])
+			if err != nil {
+				log.Panicln("bad bind value", err.Error())
+			}
 		}
 		endpoint := Endpoint{
-			Protocol: "tcp",
+			Protocol: protocol,
 			Bind:     bind,
 		}
 
