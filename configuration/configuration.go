@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"strconv"
 )
 
@@ -57,7 +58,7 @@ func FromFile(filePath string) (Configuration, error) {
 	setValueFromEnv(&conf.Bamboo.Zookeeper.Path, "BAMBOO_ZK_PATH")
 
 	setValueFromEnv(&conf.HAProxy.TemplatePath, "HAPROXY_TEMPLATE_PATH")
-	setValueFromEnv(&conf.HAProxy.OutputPath, "HAPROXY_OUTPUT_PATH")
+	setValueFromEnv(&conf.HAProxy.OutputPath, "HAPROXY_OUTPUT_DIR")
 	setValueFromEnv(&conf.HAProxy.ReloadCommand, "HAPROXY_RELOAD_CMD")
 	setValueFromEnv(&conf.HAProxy.ReloadValidationCommand, "HAPROXY_RELOAD_VALIDATION_CMD")
 	setValueFromEnv(&conf.HAProxy.ReloadCleanupCommand, "HAPROXY_RELOAD_CLEANUP_CMD")
@@ -67,7 +68,16 @@ func FromFile(filePath string) (Configuration, error) {
 	setBoolValueFromEnv(&conf.StatsD.Enabled, "STATSD_ENABLED")
 
 	setValueFromEnv(&conf.Application.Id, "APPLICATION_ID")
+
+	generateHaOutoutPath(conf)
 	return *conf, err
+}
+
+// generateHaOutoutPath generate haproxy_output_path with haproxy_output_dir and application_id
+// and create the config file
+func generateHaOutoutPath(conf *Configuration) {
+	conf.HAProxy.OutputPath = path.Join(conf.HAProxy.OutputDir, conf.Application.Id, "haproxy.cfg")
+	os.Mkdir(path.Join(conf.HAProxy.OutputDir, conf.Application.Id), os.ModePerm)
 }
 
 func setValueFromEnv(field *string, envVar string) {

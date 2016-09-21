@@ -50,6 +50,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	fmt.Printf("conf := %+v", conf)
+
 	eventBus := event_bus.New()
 
 	// Wait for died children to avoid zombies
