@@ -62,10 +62,12 @@ type Handlers struct {
 	Conf       *configuration.Configuration
 	Storage    service.Storage
 	AppStorage application.Storage
+	AppId      string
 }
 
 func (h *Handlers) MarathonEventHandler(event MarathonEvent) {
-	if h.Conf.Application.Id == strings.TrimLeft(event.AppId, "/") || event.EventType == "event_stream_attached" {
+	if event.EventType == "event_stream_attached" && event.AppId != "" {
+		h.AppId = strings.TrimLeft(event.AppId, "/")
 		log.Printf("%s-----> %s => %s\n", event.AppId, event.EventType, event.Timestamp)
 		queueUpdate(h)
 		h.Conf.StatsD.Increment(1.0, "callback.marathon", 1)
@@ -170,6 +172,7 @@ func queueUpdate(h *Handlers) {
 
 func handleHAPUpdate(h *Handlers) {
 	reloadStart := time.Now()
+	// TODO fetch app from marathon and register it to F5
 	reloaded, err := ensureLatestConfig(h)
 
 	if err != nil {

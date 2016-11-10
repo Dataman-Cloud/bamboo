@@ -64,11 +64,13 @@ func FromFile(filePath string) (Configuration, error) {
 	setValueFromEnv(&conf.HAProxy.ReloadCleanupCommand, "HAPROXY_RELOAD_CLEANUP_CMD")
 	setValueFromEnv(&conf.HAProxy.IP, "HAPROXY_IP")
 	setValueFromEnv(&conf.HAProxy.Port, "HAPROXY_PORT")
+	setValueFromEnv(&conf.HAProxy.UiPort, "HAPROXY_UI_PORT")
 
 	setValueFromEnv(&conf.StatsD.Host, "STATSD_HOST")
 	setValueFromEnv(&conf.StatsD.Prefix, "STATSD_PREFIX")
 	setBoolValueFromEnv(&conf.StatsD.Enabled, "STATSD_ENABLED")
 
+	setValueFromEnv(&conf.Application.Id, "APPLICATION_ID")
 	setValueFromEnv(&conf.Application.Id, "APPLICATION_ID")
 
 	generateHaOutoutPath(conf)

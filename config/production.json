@@ -1,12 +1,12 @@
 {
   "Marathon": {
-    "Endpoint": "http://192.168.1.127:5098"
+    "Endpoint": "http://192.168.1.155:8080"
   },
 
   "Bamboo": {
-    "Endpoint": "http://192.168.1.127:8000",
+    "Endpoint": "http://192.168.1.99:8000",
     "Zookeeper": {
-      "Host": "192.168.1.127:5092",
+      "Host": "192.168.1.155:2181",
       "Path": "/bamboo",
       "ReportingDelay": 5
     }
@@ -28,6 +28,6 @@
    },
 
   "Application": {
-    "Id": ""
+    "Id": "clustertest-2048-zhguo-test"
   }
 }

@@ -273,6 +273,7 @@ func listenToMarathonEventStream(conf *configuration.Configuration, sub api.Even
 					}
 
 					line = line[6:]
+					fmt.Println("line ==== >", line)
 
 					sub.Notify([]byte(line))
 				}
