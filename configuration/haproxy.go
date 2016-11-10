@@ -9,4 +9,5 @@ type HAProxy struct {
 	ReloadCleanupCommand    string
 	IP                      string
 	Port                    string
+	UiPort                  string
 }

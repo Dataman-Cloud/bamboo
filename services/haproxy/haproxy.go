@@ -13,8 +13,9 @@ import (
 )
 
 type templateData struct {
-	Frontends []Frontend
-	Services  map[string]service.Service
+	Frontends     []Frontend
+	Services      map[string]service.Service
+	HaproxyUiPort string
 }
 
 type Server struct {
@@ -77,7 +78,9 @@ func GetTemplateData(config *conf.Configuration, storage service.Storage, appSto
 		byName[service.Id] = service
 	}
 
-	return &templateData{frontends, byName}, nil
+	haproxyUiPort := config.HAProxy.UiPort
+
+	return &templateData{frontends, byName, haproxyUiPort}, nil
 }
 
 func formWeightMap(zkWeights []application.Weight) map[string]int {
