@@ -101,6 +101,10 @@ type marathonApps struct {
 	Apps []marathonApp `json:"apps"`
 }
 
+type SingleMarathonApp struct {
+	App marathonApp `json:"app"`
+}
+
 type marathonApp struct {
 	Id           string                `json:"id"`
 	HealthChecks []marathonHealthCheck `json:"healthChecks"`
@@ -153,6 +157,36 @@ func fetchMarathonApps(endpoint string, conf *configuration.Configuration) (map[
 	return dataById, nil
 }
 
+func FetchMarathonApp(endpoint, appId string, conf *configuration.Configuration) (*marathonApp, error) {
+	client := &http.Client{}
+	req, _ := http.NewRequest("GET", endpoint+"/v2/apps/"+appId, nil)
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
+	if len(conf.Marathon.User) > 0 && len(conf.Marathon.Password) > 0 {
+		req.SetBasicAuth(conf.Marathon.User, conf.Marathon.Password)
+	}
+	response, err := client.Do(req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer response.Body.Close()
+	var appResponse SingleMarathonApp
+
+	contents, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(contents, &appResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return &appResponse.App, nil
+}
+
 func fetchTasks(endpoint string, conf *configuration.Configuration) (map[string]marathonTaskList, error) {
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", endpoint+"/v2/tasks", nil)
@@ -196,6 +230,36 @@ func fetchTasks(endpoint string, conf *configuration.Configuration) (map[string]
 	}
 
 	return tasksById, nil
+}
+
+func FetchAppTasks(endpoint, appId string, conf *configuration.Configuration) (marathonTaskList, error) {
+	client := &http.Client{}
+	req, _ := http.NewRequest("GET", endpoint+"/v2/"+appId+"tasks", nil)
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
+	if len(conf.Marathon.User) > 0 && len(conf.Marathon.Password) > 0 {
+		req.SetBasicAuth(conf.Marathon.User, conf.Marathon.Password)
+	}
+	response, err := client.Do(req)
+
+	var tasks marathonTasks
+
+	if err != nil {
+		return nil, err
+	}
+
+	contents, err := ioutil.ReadAll(response.Body)
+	defer response.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(contents, &tasks)
+	if err != nil {
+		return nil, err
+	}
+
+	return tasks.Tasks, nil
 }
 
 func createApps(tasksById map[string]marathonTaskList, marathonApps map[string]marathonApp) AppList {

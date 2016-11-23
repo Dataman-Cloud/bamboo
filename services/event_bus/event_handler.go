@@ -149,7 +149,7 @@ func init() {
 		log.Println("Starting update loop")
 		for {
 			h := <-updateChan
-			handleHAPUpdate(h)
+			handleF5Update(h)
 		}
 	}()
 }

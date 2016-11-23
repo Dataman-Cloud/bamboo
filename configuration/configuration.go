@@ -29,6 +29,9 @@ type Configuration struct {
 
 	// Application configuration
 	Application Application
+
+	// F5 configuration
+	F5 F5
 }
 
 /*
@@ -72,6 +75,10 @@ func FromFile(filePath string) (Configuration, error) {
 
 	setValueFromEnv(&conf.Application.Id, "APPLICATION_ID")
 	setValueFromEnv(&conf.Application.Id, "APPLICATION_ID")
+
+	setValueFromEnv(&conf.F5.EndPoint, "F5_ENDPOINT")
+	setValueFromEnv(&conf.F5.UserName, "F5_USERNAME")
+	setValueFromEnv(&conf.F5.Password, "F5_PASSWORD")
 
 	generateHaOutoutPath(conf)
 	return *conf, err
