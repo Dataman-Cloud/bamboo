@@ -64,7 +64,7 @@ func (f5 *F5) CreateVirtualServer(h *Handlers) error {
 }
 
 func (f5 *F5) CreatePool(h *Handlers) error {
-	tasks, err := marathon.FetchAppTasks(h.Conf.Marathon.Endpoint, h.AppId, h.Conf)
+	tasks, err := marathon.FetchTasks(h.Conf.Marathon, h.AppId, h.Conf)
 	if err != nil {
 		return err
 	}

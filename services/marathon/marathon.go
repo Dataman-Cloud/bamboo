@@ -234,7 +234,7 @@ func fetchTasks(endpoint string, conf *configuration.Configuration) (map[string]
 
 func FetchAppTasks(endpoint, appId string, conf *configuration.Configuration) (marathonTaskList, error) {
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET", endpoint+"/v2/"+appId+"tasks", nil)
+	req, _ := http.NewRequest("GET", endpoint+"/v2/apps/"+appId+"/tasks", nil)
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
 	if len(conf.Marathon.User) > 0 && len(conf.Marathon.Password) > 0 {
@@ -414,6 +414,38 @@ func FetchApps(maraconf configuration.Marathon, conf *configuration.Configuratio
 		applist, err = _fetchApps(url, conf)
 		if err == nil {
 			return applist, err
+		}
+	}
+	// return last error
+	return nil, err
+}
+
+func FetchApp(maraconf configuration.Marathon, appId string, conf *configuration.Configuration) (*marathonApp, error) {
+
+	var app *marathonApp
+	var err error
+
+	// try all configured endpoints until one succeeds
+	for _, url := range maraconf.Endpoints() {
+		app, err = FetchMarathonApp(url, appId, conf)
+		if err == nil {
+			return app, err
+		}
+	}
+	// return last error
+	return nil, err
+}
+
+func FetchTasks(maraconf configuration.Marathon, appId string, conf *configuration.Configuration) (marathonTaskList, error) {
+
+	var tasks marathonTaskList
+	var err error
+
+	// try all configured endpoints until one succeeds
+	for _, url := range maraconf.Endpoints() {
+		tasks, err = FetchAppTasks(url, appId, conf)
+		if err == nil {
+			return tasks, err
 		}
 	}
 	// return last error

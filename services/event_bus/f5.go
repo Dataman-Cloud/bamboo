@@ -20,7 +20,7 @@ type Pool struct {
 	Name              string   `json:"name"`
 	LoadBalancingMode string   `json:"loadBalancingMode"`
 	Monitor           string   `json:"monitor"`
-	Members           []Member `json:"member"`
+	Members           []Member `json:"members"`
 }
 
 type Member struct {
