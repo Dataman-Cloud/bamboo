@@ -19,11 +19,12 @@ type templateData struct {
 }
 
 type Server struct {
-	Name    string
-	Version string
-	Host    string
-	Port    int
-	Weight  int
+	Name           string
+	Version        string
+	Host           string
+	Port           int
+	Weight         int
+	BackendMaxConn string
 }
 
 type ByVersion []Server
@@ -70,7 +71,7 @@ func GetTemplateData(config *conf.Configuration, storage service.Storage, appSto
 		return nil, err
 	}
 
-	frontends := formFrontends(apps)
+	frontends := formFrontends(apps, config)
 	log.Printf("frontends = %+v", frontends)
 
 	byName := make(map[string]service.Service)
@@ -106,7 +107,7 @@ func formWeightMap(zkWeights []application.Weight) map[string]int {
 	return weightMap
 }
 
-func formFrontends(apps marathon.AppList) []Frontend {
+func formFrontends(apps marathon.AppList, config *conf.Configuration) []Frontend {
 	frontends := []Frontend{}
 	for _, app := range apps {
 		endpointsLen := len(app.Endpoints)
@@ -126,9 +127,10 @@ func formFrontends(apps marathon.AppList) []Frontend {
 						continue
 					}
 					server := Server{
-						Name: fmt.Sprintf("%s-%d", task.Server, task.Ports[epIdx]),
-						Host: task.Host,
-						Port: task.Ports[epIdx],
+						Name:           fmt.Sprintf("%s-%d", task.Server, task.Ports[epIdx]),
+						Host:           task.Host,
+						Port:           task.Ports[epIdx],
+						BackendMaxConn: config.HAProxy.BackendMaxConn,
 					}
 					servers = append(servers, server)
 				}

@@ -10,4 +10,5 @@ type HAProxy struct {
 	IP                      string
 	Port                    string
 	UiPort                  string
+	BackendMaxConn          string
 }
