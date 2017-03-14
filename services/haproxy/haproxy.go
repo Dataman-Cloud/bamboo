@@ -102,7 +102,7 @@ func formFrontends(config *conf.Configuration) ([]Frontend, error) {
 
 	var frontends []Frontend
 	frontend := Frontend{
-		Name:     fmt.Sprintf("%s-%s-%s", marathonApp.Id, haproxy_port_slice[0], haproxy_port_slice[1]),
+		Name:     fmt.Sprintf("%s-%s-%s", config.Application.Id, haproxy_port_slice[0], haproxy_port_slice[1]),
 		Protocol: haproxy_port_slice[0],
 		Bind:     haproxy_port_slice[1],
 		Servers:  servers,
