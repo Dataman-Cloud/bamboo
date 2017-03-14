@@ -24,9 +24,6 @@ type Configuration struct {
 	// HAProxy output configuration
 	HAProxy HAProxy
 
-	// StatsD configuration
-	StatsD StatsD
-
 	// Application configuration
 	Application Application
 }
@@ -66,10 +63,6 @@ func FromFile(filePath string) (Configuration, error) {
 	setValueFromEnv(&conf.HAProxy.Port, "HAPROXY_PORT")
 	setValueFromEnv(&conf.HAProxy.UiPort, "HAPROXY_UI_PORT")
 	setValueFromEnv(&conf.HAProxy.BackendMaxConn, "HAPROXY_BACKEND_MAXCONN")
-
-	setValueFromEnv(&conf.StatsD.Host, "STATSD_HOST")
-	setValueFromEnv(&conf.StatsD.Prefix, "STATSD_PREFIX")
-	setBoolValueFromEnv(&conf.StatsD.Enabled, "STATSD_ENABLED")
 
 	setValueFromEnv(&conf.Application.Id, "APPLICATION_ID")
 

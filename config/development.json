@@ -1,0 +1,29 @@
+{
+  "Marathon": {
+    "Endpoint": "http://192.168.115.131:8080",
+    "User": "admin",
+    "Password": "pfdcos"
+  },
+
+  "Bamboo": {
+    "Endpoint": "http://0.0.0.0:8000",
+    "Zookeeper": {
+      "Host": "192.168.115.131:2181",
+      "Path": "/bamboo",
+      "ReportingDelay": 5
+    }
+  },
+
+  "HAProxy": {
+    "TemplatePath": "config/haproxy_template.cfg",
+    "OutputDir": "/Users/will/Desktop/pufa/haproxy",
+    "ReloadCommand": "haproxy -f /etc/haproxy/haproxy.cfg -p /var/run/haproxy.pid -D -sf $(cat /var/run/haproxy.pid)",
+    "ReloadValidationCommand": "haproxy -c -f {{.}}",
+    "IP": "http://127.0.0.1",
+    "Port": "5004"
+  },
+
+  "Application": {
+    "Id": "macvlan-2048"
+  }
+}

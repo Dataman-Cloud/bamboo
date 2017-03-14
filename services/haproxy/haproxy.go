@@ -1,20 +1,18 @@
 package haproxy
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
-	"sort"
+	"strings"
 
 	conf "github.com/QubitProducts/bamboo/configuration"
 	"github.com/QubitProducts/bamboo/services/application"
 	"github.com/QubitProducts/bamboo/services/marathon"
-	"github.com/QubitProducts/bamboo/services/service"
 )
 
 type templateData struct {
 	Frontends     []Frontend
-	Services      map[string]service.Service
 	HaproxyUiPort string
 }
 
@@ -42,159 +40,73 @@ func (a ByVersion) Less(i, j int) bool {
 type Frontend struct {
 	Name     string
 	Protocol string
-	Bind     int
+	Bind     string
 	Servers  []Server
 }
-type ByBind []Frontend
 
-func (a ByBind) Len() int {
-	return len(a)
-}
-func (a ByBind) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
-func (a ByBind) Less(i, j int) bool {
-	return a[i].Bind < a[j].Bind
-}
-
-var FrontendMap map[string]Frontend = make(map[string]Frontend)
-
-func GetTemplateData(config *conf.Configuration, storage service.Storage, appStorage application.Storage) (*templateData, error) {
-	apps, err := marathon.FetchApps(config.Marathon, config)
-
+func GetTemplateData(config *conf.Configuration) (*templateData, error) {
+	frontends, err := formFrontends(config)
 	if err != nil {
 		return nil, err
 	}
-
-	services, err := storage.All()
-	if err != nil {
-		return nil, err
-	}
-
-	frontends := formFrontends(apps, config)
 	log.Printf("frontends = %+v", frontends)
-
-	byName := make(map[string]service.Service)
-	for _, service := range services {
-		byName[service.Id] = service
-	}
 
 	haproxyUiPort := config.HAProxy.UiPort
 
-	return &templateData{frontends, byName, haproxyUiPort}, nil
+	return &templateData{frontends, haproxyUiPort}, nil
 }
 
-func formWeightMap(zkWeights []application.Weight) map[string]int {
-	weightMap := map[string]int{}
-	processed := map[string]bool{}
-	for _, weight := range zkWeights {
-		if frontend, ok := FrontendMap[weight.ID]; ok {
-			servers := CalcWeights(frontend, weight)
-			for _, server := range servers {
-				weightMap[server["server"].(string)] = server["weight"].(int)
-			}
-			processed[weight.ID] = true
-		}
+func formFrontends(config *conf.Configuration) ([]Frontend, error) {
+	marathonApp, err := marathon.FetchMarathonApp(config)
+	if err != nil {
+		return nil, err
 	}
-	//set initial weight
-	for id, frontend := range FrontendMap {
-		if !processed[id] {
-			for _, server := range frontend.Servers {
-				weightMap[server.Name] = server.Weight
-			}
-		}
-	}
-	return weightMap
-}
 
-func formFrontends(apps marathon.AppList, config *conf.Configuration) []Frontend {
-	frontends := []Frontend{}
-	for _, app := range apps {
-		endpointsLen := len(app.Endpoints)
-		if endpointsLen > 0 {
-			for epIdx, endpoint := range app.Endpoints {
-				frontend := Frontend{
-					Name:     fmt.Sprintf("%s-%s-%d", app.Frontend, endpoint.Protocol, endpoint.Bind),
-					Protocol: endpoint.Protocol,
-					Bind:     endpoint.Bind,
+	fmt.Printf("marathonApp ===== %+v", marathonApp)
+
+	haproxy_port := marathonApp.Env["HAPROXY_PORT"]
+	use_macvlan := marathonApp.Env["USE_MACVLAN"]
+	haproxy_port_slice := strings.Split(haproxy_port, ":")
+	if len(haproxy_port_slice) != 2 {
+		return nil, errors.New("the HAPROXY_PORT env must be protocol with port like tcp:7788")
+	}
+
+	servers := []Server{}
+	for _, task := range marathonApp.Tasks {
+		var server Server
+		if use_macvlan == "true" {
+			for _, port := range marathonApp.IpAddress.Discovery.Ports {
+				server = Server{
+					Name:           fmt.Sprintf("%s-%d", task.IpAddresses[0].IpAddress, port.Number),
+					Host:           task.IpAddresses[0].IpAddress,
+					Port:           port.Number,
+					BackendMaxConn: config.HAProxy.BackendMaxConn,
 				}
+				servers = append(servers, server)
+			}
 
-				servers := []Server{}
-				for _, task := range app.Tasks {
-					// endpoint contain haproxy map port so endpoint must one-one correspondence task.Port
-					// then length of endpoint must be equal to length task.Port
-					if len(task.Ports) != endpointsLen {
-						continue
-					}
-					server := Server{
-						Name:           fmt.Sprintf("%s-%d", task.Server, task.Ports[epIdx]),
-						Host:           task.Host,
-						Port:           task.Ports[epIdx],
-						BackendMaxConn: config.HAProxy.BackendMaxConn,
-					}
-					servers = append(servers, server)
+		} else {
+			for _, port := range task.Ports {
+				server = Server{
+					Name:           fmt.Sprintf("%s-%d", task.Host, port),
+					Host:           task.Host,
+					Port:           port,
+					BackendMaxConn: config.HAProxy.BackendMaxConn,
 				}
-				sort.Sort(ByVersion(servers))
-				frontend.Servers = servers
-
-				frontends = append(frontends, frontend)
-				FrontendMap[app.Id] = frontend
+				servers = append(servers, server)
 			}
 		}
 	}
-	sort.Sort(ByBind(frontends))
-	return frontends
-}
 
-func handleCanary(apps marathon.AppList, weights []application.Weight) (result marathon.AppList) {
-	weightMap := extractWeights(weights)
-	weightMapJson, _ := json.Marshal(weightMap)
-	log.Println("weightMap", string(weightMapJson))
-	result = marathon.AppList{}
-	for _, app := range apps {
-		weight, hasWeight := weightMap[app.Id]
-		log.Println("weight", weight, "hasWeight", hasWeight)
-		newTasks := []marathon.Task{}
-		for _, task := range app.Tasks {
-			if task.Version == app.CurVsn {
-				task.Weight = 1
-			} else {
-				task.Weight = 0
-			}
-			log.Println("task version", task.Version, "curVsn", app.CurVsn)
-			log.Println("task weight", task.Weight)
-			newTasks = append(newTasks, task)
-		}
-		app.Tasks = newTasks
-		result = append(result, app)
+	var frontends []Frontend
+	frontend := Frontend{
+		Name:     fmt.Sprintf("%s-%s-%s", marathonApp.Id, haproxy_port_slice[0], haproxy_port_slice[1]),
+		Protocol: haproxy_port_slice[0],
+		Bind:     haproxy_port_slice[1],
+		Servers:  servers,
 	}
-	return result
-}
-
-func extractWeights(weights []application.Weight) map[string]application.Weight {
-	weightMap := make(map[string]application.Weight, len(weights))
-	for _, weight := range weights {
-		weightMap[weight.ID] = weight
-	}
-
-	return weightMap
-}
-
-//CalcWeights clac server weights
-func CalcWeights(frontend Frontend, weight application.Weight) []map[string]interface{} {
-	versionMap := formVersionMap(frontend)
-	versionMapJson, _ := json.Marshal(versionMap)
-	log.Println("versionMap", string(versionMapJson))
-
-	versionWeights := formVersionWeights(weight, versionMap)
-	versionWeightsJson, _ := json.Marshal(versionWeights)
-	log.Println("versionWeights", string(versionWeightsJson))
-
-	servers := formServers(frontend, versionWeights)
-	serversJson, _ := json.Marshal(servers)
-	log.Println("servers", string(serversJson))
-
-	return servers
+	frontends = append(frontends, frontend)
+	return frontends, nil
 }
 
 func formServers(frontend Frontend, weights map[string][2]int) []map[string]interface{} {

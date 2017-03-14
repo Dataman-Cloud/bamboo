@@ -67,9 +67,6 @@ func main() {
 		}
 	}()
 
-	// Create StatsD client
-	conf.StatsD.CreateClient()
-
 	// Create Zookeeper connection
 	zkConn := listenToZookeeper(conf, eventBus)
 
@@ -88,7 +85,6 @@ func main() {
 	handlers := event_bus.Handlers{Conf: &conf, Storage: storage, AppStorage: appStorage}
 	eventBus.Register(handlers.MarathonEventHandler)
 	eventBus.Register(handlers.ServiceEventHandler)
-	eventBus.Register(handlers.WeightEventHandler)
 	eventBus.Publish(event_bus.MarathonEvent{EventType: "bamboo_startup", Timestamp: time.Now().Format(time.RFC3339)})
 
 	// Handle gracefully exit
@@ -107,7 +103,6 @@ func initServer(conf *configuration.Configuration, storage service.Storage, appS
 	eventSubAPI := api.EventSubscriptionAPI{Conf: conf, EventBus: eventBus}
 	weightAPI := api.WeightAPI{Config: conf, Storage: appStorage}
 
-	conf.StatsD.Increment(1.0, "restart", 1)
 	// Status live information
 	router := martini.Classic()
 	router.Get("/status", api.HandleStatus)
@@ -198,23 +193,11 @@ func listenToZookeeper(conf configuration.Configuration, eventBus *event_bus.Eve
 	serviceConf.Path = fmt.Sprintf("%s/%s", serviceConf.Path, "services")
 	serviceCh, serviceConn := createAndListen(serviceConf)
 
-	weightConf := conf.Bamboo.Zookeeper
-	weightConf.Path = fmt.Sprintf("%s/%s", weightConf.Path, "weights")
-	weightCh, _ := createAndListen(weightConf)
-
 	go func() {
 		for {
 			select {
 			case <-serviceCh:
 				eventBus.Publish(event_bus.ServiceEvent{EventType: "change"})
-			}
-		}
-	}()
-	go func() {
-		for {
-			select {
-			case <-weightCh:
-				eventBus.Publish(event_bus.WeightEvent{EventType: "change"})
 			}
 		}
 	}()

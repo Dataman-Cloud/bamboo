@@ -4,7 +4,7 @@ MAINTAINER Xiao Deshi <dsxiao@dataman-inc.com>
 RUN mkdir -p /config
 
 ADD config/haproxy_template.cfg /config/haproxy_template.cfg
-ADD config/production.json /config/production.json
+ADD config/development.json /config/development.json
 
 ADD . /gopath/src/github.com/QubitProducts/bamboo
 ADD haproxy /usr/share/haproxy

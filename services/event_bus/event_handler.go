@@ -1,8 +1,6 @@
 package event_bus
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -10,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"time"
 
 	"github.com/QubitProducts/bamboo/configuration"
 	"github.com/QubitProducts/bamboo/services/application"
@@ -45,16 +42,7 @@ type StatusUpdateEvent struct {
 	AppId     string
 }
 
-type ZookeeperEvent struct {
-	Source    string
-	EventType string
-}
-
 type ServiceEvent struct {
-	EventType string
-}
-
-type WeightEvent struct {
 	EventType string
 }
 
@@ -68,76 +56,12 @@ func (h *Handlers) MarathonEventHandler(event MarathonEvent) {
 	if h.Conf.Application.Id == strings.TrimLeft(event.AppId, "/") || event.EventType == "event_stream_attached" {
 		log.Printf("%s-----> %s => %s\n", event.AppId, event.EventType, event.Timestamp)
 		queueUpdate(h)
-		h.Conf.StatsD.Increment(1.0, "callback.marathon", 1)
 	}
 }
 
 func (h *Handlers) ServiceEventHandler(event ServiceEvent) {
-	log.Println("Domain mapping: Stated changed")
+	log.Println("app status changed")
 	queueUpdate(h)
-	h.Conf.StatsD.Increment(1.0, "reload.domain", 1)
-}
-
-func (h *Handlers) WeightEventHandler(event WeightEvent) {
-	log.Println("Weight changed")
-	frontendMapJson, _ := json.Marshal(haproxy.FrontendMap)
-	log.Println("frontendMap", string(frontendMapJson))
-
-	weights, err := h.AppStorage.All()
-	if err != nil {
-		log.Println("Error: can't fetch weights", err.Error())
-		return
-	}
-	weightJson, _ := json.Marshal(weights)
-	log.Println("weight", string(weightJson))
-
-	for _, weight := range weights {
-		if frontend, ok := haproxy.FrontendMap[weight.ID]; ok {
-			servers := haproxy.CalcWeights(frontend, weight)
-			updateWeight(h.Conf, servers)
-		}
-	}
-	// save weight into config file for haproxy recovery
-	content, err := generateConfig(h)
-	if err != nil {
-		log.Println("can't generate config", err.Error())
-	}
-	err = ioutil.WriteFile(h.Conf.HAProxy.OutputPath, []byte(content), 0666)
-	if err != nil {
-		log.Println("Failed to write template on path", h.Conf.HAProxy.OutputPath)
-	}
-}
-
-func updateWeight(conf *configuration.Configuration, servers []map[string]interface{}) {
-	if len(servers) < 1 {
-		log.Println("empty servers")
-		return
-	}
-
-	json, err := json.Marshal(servers)
-	if err != nil {
-		log.Println(err.Error())
-		log.Println("Error: can't update app weight")
-		return
-	}
-	log.Println("serversJson", string(json))
-
-	client := &http.Client{}
-	addr := fmt.Sprintf("%s:%s/api/weight", conf.HAProxy.IP, conf.HAProxy.Port)
-	req, err := http.NewRequest("PUT", addr, bytes.NewBuffer(json))
-	req.Close = true
-	if err != nil {
-		log.Println("Failed to creat new http request: ", err)
-		return
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Println("Http request failed: ", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	log.Println("updated", string(json), resp.StatusCode)
 }
 
 var updateChan = make(chan *Handlers, 1)
@@ -169,19 +93,12 @@ func queueUpdate(h *Handlers) {
 }
 
 func handleHAPUpdate(h *Handlers) {
-	reloadStart := time.Now()
 	reloaded, err := ensureLatestConfig(h)
-
 	if err != nil {
-		h.Conf.StatsD.Increment(1.0, "haproxy.reload.error", 1)
 		log.Println("Failed to update HAProxy configuration:", err)
-	} else if reloaded {
-		h.Conf.StatsD.Timing(1.0, "haproxy.reload.marathon.duration", time.Since(reloadStart))
-		h.Conf.StatsD.Increment(1.0, "haproxy.reload.marathon.reloaded", 1)
-		log.Println("Reloaded HAProxy configuration")
-	} else {
-		h.Conf.StatsD.Increment(1.0, "haproxy.reload.skipped", 1)
-		log.Println("Skipped HAProxy configuration reload due to lack of changes")
+	}
+	if reloaded {
+		log.Println("The HAProxy configuration has been reloaded")
 	}
 }
 
@@ -197,13 +114,6 @@ func ensureLatestConfig(h *Handlers) (reloaded bool, err error) {
 		return
 	}
 
-	/*	err = validateConfig(conf.HAProxy.ReloadValidationCommand, content)
-		if err != nil {
-			return
-		}*/
-
-	defer cleanupConfig(h.Conf.HAProxy.ReloadCleanupCommand)
-
 	reloaded, err = changeConfig(h.Conf, content)
 	if err != nil {
 		return
@@ -214,21 +124,20 @@ func ensureLatestConfig(h *Handlers) (reloaded bool, err error) {
 
 // Generates the new config to be written
 func generateConfig(h *Handlers) (config string, err error) {
-	conf := h.Conf
-	templateContent, err := ioutil.ReadFile(conf.HAProxy.TemplatePath)
+	templateContent, err := ioutil.ReadFile(h.Conf.HAProxy.TemplatePath)
 	if err != nil {
 		log.Println("Failed to read template contents")
 		return
 	}
 
-	templateData, err := haproxy.GetTemplateData(conf, h.Storage, h.AppStorage)
+	templateData, err := haproxy.GetTemplateData(h.Conf)
 	if err != nil {
 		log.Println("Failed to retrieve template data")
 		TemplateInvalid = true
 		return
 	}
 
-	config, err = template.RenderTemplate(conf.HAProxy.TemplatePath, string(templateContent), templateData)
+	config, err = template.RenderTemplate(h.Conf.HAProxy.TemplatePath, string(templateContent), templateData)
 	if err != nil {
 		log.Println("Template syntax error")
 		TemplateInvalid = true
@@ -295,11 +204,6 @@ func changeConfig(conf *configuration.Configuration, newContent string) (reloade
 		log.Println("Failed to write template on path", conf.HAProxy.OutputPath)
 		return
 	}
-
-	/*	err = execCommand(conf.HAProxy.ReloadCommand)
-		if err != nil {
-			return
-		}*/
 
 	client := &http.Client{}
 	addr := fmt.Sprintf("%s:%s/api/haproxy", conf.HAProxy.IP, conf.HAProxy.Port)
