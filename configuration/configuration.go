@@ -73,8 +73,12 @@ func FromFile(filePath string) (Configuration, error) {
 // generateHaOutoutPath generate haproxy_output_path with haproxy_output_dir and application_id
 // and create the config file
 func generateHaOutoutPath(conf *Configuration) {
+	log.Println("generateHaOutoutPath ... ")
 	conf.HAProxy.OutputPath = path.Join(conf.HAProxy.OutputDir, conf.Application.Id, "haproxy.cfg")
-	os.Mkdir(path.Join(conf.HAProxy.OutputDir, conf.Application.Id), os.ModePerm)
+	err := os.MkdirAll(path.Join(conf.HAProxy.OutputDir, conf.Application.Id), os.ModePerm)
+	if err != nil {
+		log.Fatal("generateHaOutoutPath error: ", err)
+	}
 }
 
 func setValueFromEnv(field *string, envVar string) {

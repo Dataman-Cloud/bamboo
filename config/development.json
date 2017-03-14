@@ -1,6 +1,6 @@
 {
   "Marathon": {
-    "Endpoint": "http://192.168.115.131:8080",
+    "Endpoint": "http://192.168.115.131:8080,http://192.168.115.130:8080",
     "User": "admin",
     "Password": "pfdcos"
   },
@@ -16,7 +16,7 @@
 
   "HAProxy": {
     "TemplatePath": "config/haproxy_template.cfg",
-    "OutputDir": "/Users/will/Desktop/pufa/haproxy",
+    "OutputDir": "/etc/haproxy",
     "ReloadCommand": "haproxy -f /etc/haproxy/haproxy.cfg -p /var/run/haproxy.pid -D -sf $(cat /var/run/haproxy.pid)",
     "ReloadValidationCommand": "haproxy -c -f {{.}}",
     "IP": "http://127.0.0.1",

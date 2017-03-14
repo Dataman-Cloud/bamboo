@@ -76,13 +76,15 @@ func formFrontends(config *conf.Configuration) ([]Frontend, error) {
 		var server Server
 		if use_macvlan == "true" {
 			for _, port := range marathonApp.IpAddress.Discovery.Ports {
-				server = Server{
-					Name:           fmt.Sprintf("%s-%d", task.IpAddresses[0].IpAddress, port.Number),
-					Host:           task.IpAddresses[0].IpAddress,
-					Port:           port.Number,
-					BackendMaxConn: config.HAProxy.BackendMaxConn,
+				for _, ipaddress := range task.IpAddresses {
+					server = Server{
+						Name:           fmt.Sprintf("%s-%d", task.IpAddresses[0].IpAddress, port.Number),
+						Host:           ipaddress.IpAddress,
+						Port:           port.Number,
+						BackendMaxConn: config.HAProxy.BackendMaxConn,
+					}
+					servers = append(servers, server)
 				}
-				servers = append(servers, server)
 			}
 
 		} else {

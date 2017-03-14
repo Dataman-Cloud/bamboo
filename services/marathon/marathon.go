@@ -49,14 +49,24 @@ type Port struct {
 }
 
 func FetchMarathonApp(conf *configuration.Configuration) (*MarathonApp, error) {
-	client := &http.Client{}
-	req, _ := http.NewRequest("GET", conf.Marathon.Endpoint+"/v2/apps/"+conf.Application.Id, nil)
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Content-Type", "application/json")
-	if len(conf.Marathon.User) > 0 && len(conf.Marathon.Password) > 0 {
-		req.SetBasicAuth(conf.Marathon.User, conf.Marathon.Password)
+	var response *http.Response
+	var err error
+	for _, endpoint := range conf.Marathon.Endpoints() {
+		client := &http.Client{}
+		req, _ := http.NewRequest("GET", endpoint+"/v2/apps/"+conf.Application.Id, nil)
+		req.Header.Add("Accept", "application/json")
+		req.Header.Add("Content-Type", "application/json")
+		if len(conf.Marathon.User) > 0 && len(conf.Marathon.Password) > 0 {
+			req.SetBasicAuth(conf.Marathon.User, conf.Marathon.Password)
+		}
+		response, err = client.Do(req)
+		if err != nil {
+			continue
+		} else {
+			break
+		}
 	}
-	response, err := client.Do(req)
+
 	if err != nil {
 		return nil, err
 	}
