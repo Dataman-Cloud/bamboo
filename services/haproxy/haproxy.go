@@ -88,15 +88,16 @@ func formFrontends(config *conf.Configuration) ([]Frontend, error) {
 			}
 
 		} else {
-			for _, port := range task.Ports {
-				server = Server{
-					Name:           fmt.Sprintf("%s-%d", task.Host, port),
-					Host:           task.Host,
-					Port:           port,
-					BackendMaxConn: config.HAProxy.BackendMaxConn,
-				}
-				servers = append(servers, server)
+			if len(task.Ports) == 0 {
+				continue
 			}
+			server = Server{
+				Name:           fmt.Sprintf("%s-%d", task.Host, task.Ports[0]),
+				Host:           task.Host,
+				Port:           task.Ports[0],
+				BackendMaxConn: config.HAProxy.BackendMaxConn,
+			}
+			servers = append(servers, server)
 		}
 	}
 
