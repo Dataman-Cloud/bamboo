@@ -124,6 +124,19 @@ func registerMarathonEvent(conf *configuration.Configuration) {
 	// it's safe to register with multiple marathon nodes
 	for _, marathon := range conf.Marathon.Endpoints() {
 		url := marathon + "/v2/eventSubscriptions?callbackUrl=" + conf.Bamboo.Endpoint + "/api/marathon/event_callback"
+		// unsubscribe
+		delReq, _ := http.NewRequest("DELETE", url, nil)
+		if (len(conf.Marathon.User)>0 && len(conf.Marathon.Password)>0) {
+			delReq.SetBasicAuth(conf.Marathon.User, conf.Marathon.Password)
+		}
+		
+		_, err := client.Do(delReq)
+		if err != nil {
+			log.Println("unsubscribe failed from marathon")	
+			return
+		}
+
+		// subscribe
 		req, _ := http.NewRequest("POST", url, nil)
 		req.Header.Add("Content-Type", "application/json")
 		if (len(conf.Marathon.User)>0 && len(conf.Marathon.Password)>0) {
